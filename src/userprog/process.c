@@ -20,6 +20,7 @@
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
+static char *splitWord(char *line, char stop);
 
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
@@ -88,6 +89,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  for (int i=0;i<100000000;i++);
   return -1;
 }
 
@@ -201,6 +203,23 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
 
+// line을 맨 앞 stop 단어를 기준으로 앞뒤를 분리. return stop앞의 단어. line은 stop 뒤의 단어들로 변경
+char *splitWord(char *line, char stop){
+  int x=0, y;
+  char *word = (char *)malloc(sizeof(char)*(strlen(line)+1));
+
+  for (x=0; ((line[x]) && (line[x] != stop)) ; x++)
+    word[x] = line[x];
+
+  word[x] = '\0';
+  if(line[x]) ++x;
+  y=0;
+
+  while(line[y++] = line[x++]);
+  return word;  
+}
+
+
 /* Loads an ELF executable from FILE_NAME into the current thread.
    Stores the executable's entry point into *EIP
    and its initial stack pointer into *ESP.
@@ -220,6 +239,15 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (t->pagedir == NULL) 
     goto done;
   process_activate ();
+
+  // Todo : parse file name
+  char tmpFileName[100];
+  char* parsedFileName[100];
+  int fileNameLength = strlcpy(tmpFileName, file_name, strlen(file_name) + 1);
+  int numberOfParsedWord;
+  for(numberOfParsedWord = 1; strlen(tmpFileName) > 0; numberOfParsedWord++)
+    parsedFileName[numberOfParsedWord - 1] = splitWord(tmpFileName, ' ');
+  
 
   /* Open executable file. */
   file = filesys_open (file_name);
@@ -304,6 +332,9 @@ load (const char *file_name, void (**eip) (void), void **esp)
   /* Set up stack. */
   if (!setup_stack (esp))
     goto done;
+
+  // Todo : construct stack
+  
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
