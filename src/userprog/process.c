@@ -89,7 +89,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
-  for (int i=0;i<100000000;i++);
+  for(int i =0; i<1000000000;i++);
   return -1;
 }
 
@@ -203,7 +203,7 @@ static bool load_segment (struct file *file, off_t ofs, uint8_t *upage,
                           uint32_t read_bytes, uint32_t zero_bytes,
                           bool writable);
 
-// line을 맨 앞 stop 단어를 기준으로 앞뒤를 분리. return stop앞의 단어. line은 stop 뒤의 단어들로 변경
+///// line을 맨 앞 stop 단어를 기준으로 앞뒤를 분리. return stop앞의 단어. line은 stop 뒤의 단어들로 변경
 char *splitWord(char *line, char stop){
   int x=0, y;
   char *word = (char *)malloc(sizeof(char)*(strlen(line)+1));
@@ -217,6 +217,59 @@ char *splitWord(char *line, char stop){
 
   while(line[y++] = line[x++]);
   return word;  
+}
+
+///// stack에 해당 라인을 넣고, esp값 반환
+char* pushToStack(void** esp, char* wordToPush, int wordLength){
+  *esp -= wordLength;
+  strlcpy(*esp, wordToPush, wordLength);
+  return *esp;
+}
+
+///// Stack을 구성
+void constructStack(void **esp, char** parsedFileName, int numberOfParsedWord){
+  char** addressOfParsedFileName;
+  addressOfParsedFileName = (char**)malloc(sizeof(char*) * (numberOfParsedWord + 1));
+
+  ///// 1. parsedFileName 넣기
+  int wordLength, wordAlign = 0, totalWordLength = 0;
+  for (int idx = (numberOfParsedWord-1); idx >= 0; idx--){
+    wordLength = strlen(parsedFileName[idx]) + 1; // 해당 문자 길이 + \0 
+    addressOfParsedFileName[idx] = pushToStack(esp,parsedFileName[idx], wordLength);
+    totalWordLength += wordLength; // 총 길이 증가
+  }
+
+  // word-align
+  wordAlign = (totalWordLength % 4 == 0) ? 0 : 4 - (totalWordLength % 4);
+  *esp -= wordAlign;
+  
+  // char* 0 구분
+  *esp -= 4;
+  **(char***)esp = 0;
+
+  // address 쌓기
+  for (int idx=numberOfParsedWord-1; idx >=0; idx--){
+    *esp -= 4;
+    **(char***)esp = addressOfParsedFileName[idx];
+  }
+
+  // addressOfParsedFileName 주소 넣기
+  *esp -= 4;
+  **(char***)esp = *esp + 4; 
+
+  // numberOfParsedWord 넣기
+  *esp -= 4;
+  **(int**)esp = numberOfParsedWord;
+
+  // return address 넣기
+  *esp -= 4;
+  **(uint32_t***)esp = 0;
+
+  printf("-----hex dump starts-----\n");
+  hex_dump(*esp, *esp, 100, 1);
+  printf("-----hex dump ends-----\n");
+
+  free(addressOfParsedFileName);
 }
 
 
@@ -240,20 +293,21 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  // Todo : parse file name
+  ///////// Todo : parse file name
   char tmpFileName[100];
   char* parsedFileName[100];
   int fileNameLength = strlcpy(tmpFileName, file_name, strlen(file_name) + 1);
   int numberOfParsedWord;
-  for(numberOfParsedWord = 1; strlen(tmpFileName) > 0; numberOfParsedWord++)
-    parsedFileName[numberOfParsedWord - 1] = splitWord(tmpFileName, ' ');
-  
+  for(numberOfParsedWord = 0; strlen(tmpFileName) > 0; numberOfParsedWord++)
+    parsedFileName[numberOfParsedWord] = splitWord(tmpFileName, ' ');
+
+  //////////////
 
   /* Open executable file. */
-  file = filesys_open (file_name);
+  file = filesys_open (parsedFileName[0]);
   if (file == NULL) 
     {
-      printf ("load: %s: open failed\n", file_name);
+      printf ("load: %s: open failed\n", parsedFileName[0]);
       goto done; 
     }
 
@@ -333,8 +387,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
   if (!setup_stack (esp))
     goto done;
 
-  // Todo : construct stack
-  
+  ///// Todo : construct a stack
+  constructStack(esp, parsedFileName, numberOfParsedWord);
 
   /* Start address. */
   *eip = (void (*) (void)) ehdr.e_entry;
