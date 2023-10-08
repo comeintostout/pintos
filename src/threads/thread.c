@@ -285,16 +285,15 @@ thread_exit (void)
 #ifdef USERPROG
   process_exit ();
 #endif
-
+  struct thread* currThread = thread_current();
   /* Remove thread from all threads list, set our status to dying,
      and schedule another process.  That process will destroy us
      when it calls thread_schedule_tail(). */
   intr_disable ();
-  list_remove (&thread_current()->allelem);
+  list_remove (&(currThread->allelem));
 
-  sema_up(&(thread_current()->isFinished));
-
-  thread_current ()->status = THREAD_DYING;
+  currThread->status = THREAD_DYING;
+  sema_up(&(currThread->isFinished)); // 죽을 때 sema up
   schedule ();
   NOT_REACHED ();
 }
@@ -471,10 +470,10 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
 
+  /////////// 새로 생성되는 쓰레드 t 과 돌고 있는 쓰레드 (부모 쓰레드) 간의 초기화
   struct thread *currThread = running_thread();
   list_init(&(t->childList));
   list_push_back(&(currThread->childList), &(t->childElem));
-  t->parentThread = currThread;
   sema_init(&(t->isFinished),0);
 }
 

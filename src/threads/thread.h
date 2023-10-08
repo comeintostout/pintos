@@ -97,7 +97,6 @@ struct thread
 	///// thread의 exit status
 	struct list childList;
 	struct list_elem childElem;
-	struct thread *parentThread;
 	int exitStatus;
    struct semaphore isFinished;
 

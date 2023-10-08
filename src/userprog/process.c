@@ -114,19 +114,17 @@ process_wait (tid_t child_tid UNUSED)
 {  
   struct thread* currThread = thread_current();
   struct thread* child;
-  struct list_elem* e;
-  int exitStatus=-1;
 
-  for(e=list_begin(&(currThread->childList)); e!=list_end(&(currThread->childList)); e=list_next(e)){
+  // 현재 쓰레드의 자식 list들을 순회. 해당 elem을 통해 list_entry()로 thread를 가져옴. 
+  for(struct list_elem* e=list_begin(&(currThread->childList)); e!=list_end(&(currThread->childList)) ; e=list_next(e)){
     child = list_entry(e, struct thread, childElem);
     if(child_tid == child->tid){
-      sema_down(&(child->isFinished));
-      exitStatus = child->exitStatus;
-      list_remove(&(child->childElem));
-      return exitStatus;
+      sema_down(&(child->isFinished)); // isFinished가 down되며, 자식 쓰레드가 죽으면서 up 할 때 깨어남
+      list_remove(&(child->childElem)); // 죽은 child Thread를 list에서 제거
+      return child->exitStatus;
     }
   }
-  return -1;
+  return -1; // 못 찾을 경우 반환
 }
 
 

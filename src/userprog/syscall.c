@@ -20,10 +20,9 @@ void halt(){
 }
 
 void exit(int status){
-  printf("%s: exit(%d)\n", thread_name(), status);
   struct thread *currThread = thread_current();
+  printf("%s: exit(%d)\n", currThread->name, status);
   currThread->exitStatus = status;
-  currThread->isExited=1;
   thread_exit();
 }
 
