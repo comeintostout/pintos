@@ -23,6 +23,17 @@ static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
 static char *splitWord(char *line, char stop);
 
+
+
+/////////// MY FUNCTIONS //////////////
+char* getSameString(const char *file_name){
+  char *newString = malloc(sizeof(char)*(strlen(file_name) + 1));
+  int newStringLength = strlcpy(newString, file_name, strlen(file_name) + 1);
+  newString[newStringLength] = '\0';
+  return newString;
+}
+////////////////////////////////////////
+
 /* Starts a new thread running a user program loaded from
    FILENAME.  The new thread may be scheduled (and may even exit)
    before process_execute() returns.  Returns the new process's
@@ -41,18 +52,20 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
-  ///// get cmdLine by parsing the file_name
-  char tmpFileName[100];
-  strlcpy(tmpFileName, file_name, strlen(file_name) + 1);
-  char *parsedFileName = splitWord(tmpFileName, ' ');
-  if (filesys_open(parsedFileName) == NULL)
+  ///// file_name을 복사. 해당 부분에서 command만 불러오기
+  char* tmpFileName = getSameString(file_name);
+  char *command = splitWord(tmpFileName, ' ');
+  if (filesys_open(command) == NULL) ///// missing 을 해결하기 위해
     return -1;
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (parsedFileName, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (command, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
 
+  /// free 해주기
+  free(tmpFileName);
+  free(command);
   return tid;
 }
 
@@ -318,16 +331,13 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
-  // printf("----load : %s\n",file_name);
-  ///////// Todo : parse file name
-  char tmpFileName[100];
+  ///////// Todo : parse file name//////////
   char* parsedFileName[100];
-  int fileNameLength = strlcpy(tmpFileName, file_name, strlen(file_name) + 1);
+  char *tmpFileName = getSameString(file_name);
   int numberOfParsedWord;
   for(numberOfParsedWord = 0; strlen(tmpFileName) > 0; numberOfParsedWord++)
     parsedFileName[numberOfParsedWord] = splitWord(tmpFileName, ' ');
-
-  //////////////
+  /////////////////////////////////////
 
   /* Open executable file. */
   file = filesys_open (parsedFileName[0]);
