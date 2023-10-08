@@ -20,9 +20,10 @@ void halt(){
 }
 
 void exit(int status){
-  struct thread *currThread = thread_current();
   printf("%s: exit(%d)\n", thread_name(), status);
-  currThread->exit_status=status;
+  struct thread *currThread = thread_current();
+  currThread->exitStatus = status;
+  currThread->isExited=1;
   thread_exit();
 }
 
@@ -76,10 +77,6 @@ void validateAddressList(const void *startAddr,unsigned int addressCount){
 static void
 syscall_handler (struct intr_frame *f UNUSED) 
 {
-//   printf("=======This is in syscall_handler========\n");
-//   printf("syscall : %d\n", *(int*)(f->esp));
-//   hex_dump(f->esp, f->esp, 100,1);
-
   int* stackPointer = (int*)(f->esp);
   int syscallNumber = *(int*)(f->esp);
 
@@ -101,7 +98,7 @@ syscall_handler (struct intr_frame *f UNUSED)
       break;
     case SYS_READ:
       validateAddressList(stackPointer+1,3);
-	  f->eax = read((int)*(stackPointer + 1), (void*)*(stackPointer + 2), (unsigned int)*(stackPointer + 3));
+	    f->eax = read((int)*(stackPointer + 1), (void*)*(stackPointer + 2), (unsigned int)*(stackPointer + 3));
       break;
     case SYS_WRITE:
       validateAddressList(stackPointer+1,3);
@@ -110,5 +107,4 @@ syscall_handler (struct intr_frame *f UNUSED)
     default:
       exit(-1);
   }
-//   thread_exit ();
 }

@@ -17,6 +17,7 @@
 #include "threads/palloc.h"
 #include "threads/thread.h"
 #include "threads/vaddr.h"
+#include "devices/timer.h"
 
 static thread_func start_process NO_RETURN;
 static bool load (const char *cmdline, void (**eip) (void), void **esp);
@@ -32,6 +33,7 @@ process_execute (const char *file_name)
   char *fn_copy;
   tid_t tid;
 
+
   /* Make a copy of FILE_NAME.
      Otherwise there's a race between the caller and load(). */
   fn_copy = palloc_get_page (0);
@@ -42,11 +44,15 @@ process_execute (const char *file_name)
   ///// get cmdLine by parsing the file_name
   char tmpFileName[100];
   strlcpy(tmpFileName, file_name, strlen(file_name) + 1);
+  char *parsedFileName = splitWord(tmpFileName, ' ');
+  if (filesys_open(parsedFileName) == NULL)
+    return -1;
 
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (splitWord(tmpFileName, ' '), PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (parsedFileName, PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
+
   return tid;
 }
 
@@ -92,11 +98,24 @@ start_process (void *file_name_)
    does nothing. */
 int
 process_wait (tid_t child_tid UNUSED) 
-{
-  // printf("----process_wait\n");
-  for(int i =0; i<1000000000;i++);
+{  
+  struct thread* currThread = thread_current();
+  struct thread* child;
+  struct list_elem* e;
+  int exitStatus=-1;
+
+  for(e=list_begin(&(currThread->childList)); e!=list_end(&(currThread->childList)); e=list_next(e)){
+    child = list_entry(e, struct thread, childElem);
+    if(child_tid == child->tid){
+      sema_down(&(child->sema_exit));
+      exitStatus = child->exitStatus;
+      list_remove(&(child->childElem));
+      return exitStatus;
+    }
+  }
   return -1;
 }
+
 
 /* Free the current process's resources. */
 void
@@ -218,6 +237,7 @@ char *splitWord(char *line, char stop){
 
   word[x] = '\0';
   if(line[x]) ++x;
+  while(line[x] == ' ') ++x;
   y=0;
 
   while(line[y++] = line[x++]);
