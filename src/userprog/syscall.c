@@ -61,7 +61,7 @@ unsigned int write(int fd, const void *buffer, unsigned int size){
 }
 
 ///// 해당 addr 이 valid 하지 않다면 exit 해버리기
-void vailidateAddress(const void *addr){
+void validateAddress(const void *addr){
   if(addr == NULL || !is_user_vaddr(addr)){
     exit(-1);
   }
@@ -69,7 +69,7 @@ void vailidateAddress(const void *addr){
 ///// validate 할 address가 여러개 일 때
 void validateAddressList(const void *startAddr,unsigned int addressCount){
   for (int i=0; i<addressCount; i++){
-    vailidateAddress(startAddr + i);
+    validateAddress(startAddr + i);
   }
 }
 
@@ -84,15 +84,15 @@ syscall_handler (struct intr_frame *f UNUSED)
       halt();
       break;
     case SYS_EXIT:
-      vailidateAddress(stackPointer+1);
+      validateAddress(stackPointer+1);
       exit((int)*(stackPointer + 1));
       break;
     case SYS_EXEC:
-      vailidateAddress(stackPointer+1);
+      validateAddress(stackPointer+1);
       f->eax = exec((char*)*(stackPointer + 1));
       break;
     case SYS_WAIT:
-      vailidateAddress(stackPointer+1);
+      validateAddress(stackPointer+1);
       f->eax = wait((int)*(stackPointer + 1));
       break;
     case SYS_READ:
