@@ -39,8 +39,12 @@ process_execute (const char *file_name)
     return TID_ERROR;
   strlcpy (fn_copy, file_name, PGSIZE);
 
+  ///// get cmdLine by parsing the file_name
+  char tmpFileName[100];
+  strlcpy(tmpFileName, file_name, strlen(file_name) + 1);
+
   /* Create a new thread to execute FILE_NAME. */
-  tid = thread_create (file_name, PRI_DEFAULT, start_process, fn_copy);
+  tid = thread_create (splitWord(tmpFileName, ' '), PRI_DEFAULT, start_process, fn_copy);
   if (tid == TID_ERROR)
     palloc_free_page (fn_copy); 
   return tid;
@@ -89,6 +93,7 @@ start_process (void *file_name_)
 int
 process_wait (tid_t child_tid UNUSED) 
 {
+  // printf("----process_wait\n");
   for(int i =0; i<1000000000;i++);
   return -1;
 }
@@ -265,9 +270,9 @@ void constructStack(void **esp, char** parsedFileName, int numberOfParsedWord){
   *esp -= 4;
   **(uint32_t***)esp = 0;
 
-  printf("-----hex dump starts-----\n");
-  hex_dump(*esp, *esp, 100, 1);
-  printf("-----hex dump ends-----\n");
+  // printf("-----hex dump starts-----\n");
+  // hex_dump(*esp, *esp, 100, 1);
+  // printf("-----hex dump ends-----\n");
 
   free(addressOfParsedFileName);
 }
@@ -293,6 +298,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
     goto done;
   process_activate ();
 
+  // printf("----load : %s\n",file_name);
   ///////// Todo : parse file name
   char tmpFileName[100];
   char* parsedFileName[100];
