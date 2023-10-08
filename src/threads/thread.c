@@ -292,7 +292,7 @@ thread_exit (void)
   intr_disable ();
   list_remove (&thread_current()->allelem);
 
-  sema_up(&(thread_current()->sema_exit));
+  sema_up(&(thread_current()->isFinished));
 
   thread_current ()->status = THREAD_DYING;
   schedule ();
@@ -471,12 +471,11 @@ init_thread (struct thread *t, const char *name, int priority)
   list_push_back (&all_list, &t->allelem);
   intr_set_level (old_level);
 
-
+  struct thread *currThread = running_thread();
   list_init(&(t->childList));
-  list_push_back(&(running_thread()->childList), &(t->childElem));
-  t->parentThread = running_thread();
-  sema_init(&(t->sema_exit),0);
-  t->isExited = 0;
+  list_push_back(&(currThread->childList), &(t->childElem));
+  t->parentThread = currThread;
+  sema_init(&(t->isFinished),0);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

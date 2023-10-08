@@ -98,9 +98,8 @@ struct thread
 	struct list childList;
 	struct list_elem childElem;
 	struct thread *parentThread;
-	bool isExited; // process가 끝났는지 알 수 있는 부분
 	int exitStatus;
-   struct semaphore sema_exit;
+   struct semaphore isFinished;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */

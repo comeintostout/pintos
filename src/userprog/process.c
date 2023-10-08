@@ -120,7 +120,7 @@ process_wait (tid_t child_tid UNUSED)
   for(e=list_begin(&(currThread->childList)); e!=list_end(&(currThread->childList)); e=list_next(e)){
     child = list_entry(e, struct thread, childElem);
     if(child_tid == child->tid){
-      sema_down(&(child->sema_exit));
+      sema_down(&(child->isFinished));
       exitStatus = child->exitStatus;
       list_remove(&(child->childElem));
       return exitStatus;
@@ -258,10 +258,14 @@ char *splitWord(char *line, char stop){
 }
 
 ///// stack에 해당 라인을 넣고, esp값 반환
-char* pushToStack(void** esp, char* wordToPush, int wordLength){
+char* pushLineToStack(void** esp, char* wordToPush, int wordLength){
   *esp -= wordLength;
   strlcpy(*esp, wordToPush, wordLength);
   return *esp;
+}
+void pushAddressToStack(void** esp, char* value, int length){
+  *esp -= length;
+  **(char***)esp = value;
 }
 
 ///// Stack을 구성
@@ -273,23 +277,18 @@ void constructStack(void **esp, char** parsedFileName, int numberOfParsedWord){
   int wordLength, wordAlign = 0, totalWordLength = 0;
   for (int idx = (numberOfParsedWord-1); idx >= 0; idx--){
     wordLength = strlen(parsedFileName[idx]) + 1; // 해당 문자 길이 + \0 
-    addressOfParsedFileName[idx] = pushToStack(esp,parsedFileName[idx], wordLength);
+    addressOfParsedFileName[idx] = pushLineToStack(esp,parsedFileName[idx], wordLength);
     totalWordLength += wordLength; // 총 길이 증가
   }
 
-  // word-align
+  // word-align 후 0 넣기
   wordAlign = (totalWordLength % 4 == 0) ? 0 : 4 - (totalWordLength % 4);
-  *esp -= wordAlign;
-  
-  // char* 0 구분
-  *esp -= 4;
+  *esp -= (wordAlign + 4);
   **(char***)esp = 0;
 
   // address 쌓기
-  for (int idx=numberOfParsedWord-1; idx >=0; idx--){
-    *esp -= 4;
-    **(char***)esp = addressOfParsedFileName[idx];
-  }
+  for (int idx=numberOfParsedWord-1; idx >=0; idx--)
+    pushAddressToStack(esp, addressOfParsedFileName[idx], sizeof(char*));
 
   // addressOfParsedFileName 주소 넣기
   *esp -= 4;
@@ -301,11 +300,7 @@ void constructStack(void **esp, char** parsedFileName, int numberOfParsedWord){
 
   // return address 넣기
   *esp -= 4;
-  **(uint32_t***)esp = 0;
-
-  // printf("-----hex dump starts-----\n");
-  // hex_dump(*esp, *esp, 100, 1);
-  // printf("-----hex dump ends-----\n");
+  **(int***)esp = 0;
 
   free(addressOfParsedFileName);
 }
