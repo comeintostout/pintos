@@ -151,6 +151,9 @@ process_exit (void)
       pagedir_activate (NULL);
       pagedir_destroy (pd);
     }
+
+  ///// fileDescriptor 비우기 /////
+  close_file_fileDescriptor(cur, -1);
 }
 
 /* Sets up the CPU for running user code in the current
@@ -423,7 +426,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   *eip = (void (*) (void)) ehdr.e_entry;
 
   success = true;
-
+  
  done:
   /* We arrive here whether the load is successful or not. */
   file_close (file);

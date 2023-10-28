@@ -6,6 +6,8 @@
 #include "threads/thread.h"
 #include "threads/vaddr.h"
 #include "devices/input.h"
+#include "filesys/file.h"
+#include "filesys/filesys.h"
 
 static void syscall_handler (struct intr_frame *);
 
@@ -32,6 +34,21 @@ int exec(const char *cmd_line){
 
 int wait (int pid){
   return process_wait(pid);
+}
+
+int open(const char *file){
+  if(file == NULL || strlen(file) <=0 || strlen(file) > 14)
+    return -1;
+
+  struct thread *currThread = thread_current();
+  int fd = -1;
+  
+  // 파일을 여는 작업
+  struct file *f = filesys_open(file);
+  if(f != NULL)
+    fd = add_file_fileDescriptor(currThread, f, -1);
+
+  return fd;
 }
 
 unsigned int read(int fd, const void *buffer, unsigned int size){
@@ -94,6 +111,10 @@ syscall_handler (struct intr_frame *f UNUSED)
     case SYS_WAIT:
       validateAddress(stackPointer+1);
       f->eax = wait((int)*(stackPointer + 1));
+      break;
+    case SYS_OPEN:
+      validateAddress(stackPointer+1);
+      f->eax = open((int)*(stackPointer + 1));
       break;
     case SYS_READ:
       validateAddressList(stackPointer+1,3);

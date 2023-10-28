@@ -2,6 +2,7 @@
 #define FILESYS_FILE_H
 
 #include "filesys/off_t.h"
+#include "threads/thread.h"
 
 struct inode;
 
@@ -25,5 +26,13 @@ void file_allow_write (struct file *);
 void file_seek (struct file *, off_t);
 off_t file_tell (struct file *);
 off_t file_length (struct file *);
+
+////// file descriptor 관련 함수
+void init_fileDescriptor(struct thread *currThread);
+int add_file_fileDescriptor(struct thread *currThread, struct file *f, int index);
+struct file* get_file_fileDescriptor(struct thread *currThread, int fd);
+void close_file_fileDescriptor(struct thread *currThread, int fd);
+int find_space_fildDescriptor(struct thread *currThread);
+
 
 #endif /* filesys/file.h */

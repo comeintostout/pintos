@@ -13,6 +13,7 @@
 #include "threads/vaddr.h"
 #ifdef USERPROG
 #include "userprog/process.h"
+#include "filesys/file.h"
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -475,6 +476,9 @@ init_thread (struct thread *t, const char *name, int priority)
   list_init(&(t->childList));
   list_push_back(&(currThread->childList), &(t->childElem));
   sema_init(&(t->isFinished),0);
+
+  /////////// file descriptor 초기화 ///////
+  init_fileDescriptor(t);
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

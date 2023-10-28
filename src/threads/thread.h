@@ -1,10 +1,12 @@
 #ifndef THREADS_THREAD_H
 #define THREADS_THREAD_H
+#define MAX_FILE_DESCRIPTOR 128
 
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
 #include "synch.h"
+#include "filesys/file.h"
 
 /* States in a thread's life cycle. */
 enum thread_status
@@ -100,6 +102,8 @@ struct thread
 	int exitStatus;
    struct semaphore isFinished;
 
+   ///// thread가 지니는 file descriptor
+   struct file *fileDescriptor[MAX_FILE_DESCRIPTOR];
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */
