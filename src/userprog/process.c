@@ -84,6 +84,8 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
+  // if(success)
+  //   sema_up(&(thread_current()->sema_load));
 
   /* If load failed, quit. */
   palloc_free_page (file_name);
@@ -119,7 +121,7 @@ process_wait (tid_t child_tid UNUSED)
   for(struct list_elem* e=list_begin(&(currThread->childList)); e!=list_end(&(currThread->childList)) ; e=list_next(e)){
     child = list_entry(e, struct thread, childElem);
     if(child_tid == child->tid){
-      sema_down(&(child->isFinished)); // isFinished가 down되며, 자식 쓰레드가 죽으면서 up 할 때 깨어남
+      sema_down(&(child->sema_exit)); // isFinished가 down되며, 자식 쓰레드가 죽으면서 up 할 때 깨어남
       list_remove(&(child->childElem)); // 죽은 child Thread를 list에서 제거
       return child->exitStatus;
     }
@@ -153,6 +155,7 @@ process_exit (void)
     }
 
   ///// fileDescriptor 비우기 /////
+  file_close(cur->openFile);
   close_file_fileDescriptor(cur, -1);
 }
 
@@ -255,7 +258,7 @@ char *splitWord(char *line, char stop){
   y=0;
 
   while(line[y++] = line[x++]);
-  return word;  
+  return word;
 }
 
 ///// stack에 해당 라인을 넣고, esp값 반환
@@ -342,6 +345,8 @@ load (const char *file_name, void (**eip) (void), void **esp)
       printf ("load: %s: open failed\n", parsedFileName[0]);
       goto done; 
     }
+  file_deny_write(file);
+  t->openFile = file;
 
   /* Read and verify executable header. */
   if (file_read (file, &ehdr, sizeof ehdr) != sizeof ehdr
@@ -429,7 +434,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   
  done:
   /* We arrive here whether the load is successful or not. */
-  file_close (file);
+  // file_close (file);
   return success;
 }
 

@@ -5,6 +5,7 @@
 #include <debug.h>
 #include <list.h>
 #include <stdint.h>
+#include <stdbool.h>
 #include "synch.h"
 #include "filesys/file.h"
 
@@ -100,10 +101,14 @@ struct thread
 	struct list childList;
 	struct list_elem childElem;
 	int exitStatus;
-   struct semaphore isFinished;
-
+   bool isLoaded;
+   struct semaphore sema_exit;
+   struct semaphore sema_load;
+   
    ///// thread가 지니는 file descriptor
    struct file *fileDescriptor[MAX_FILE_DESCRIPTOR];
+   struct file *openFile;
+
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
     uint32_t *pagedir;                  /* Page directory. */

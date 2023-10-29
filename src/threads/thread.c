@@ -294,7 +294,7 @@ thread_exit (void)
   list_remove (&(currThread->allelem));
 
   currThread->status = THREAD_DYING;
-  sema_up(&(currThread->isFinished)); // 죽을 때 sema up
+  sema_up(&(currThread->sema_exit)); // 죽을 때 sema up
   schedule ();
   NOT_REACHED ();
 }
@@ -475,8 +475,8 @@ init_thread (struct thread *t, const char *name, int priority)
   struct thread *currThread = running_thread();
   list_init(&(t->childList));
   list_push_back(&(currThread->childList), &(t->childElem));
-  sema_init(&(t->isFinished),0);
-
+  sema_init(&(t->sema_exit),0);
+  sema_init(&(t->sema_load),0);
   /////////// file descriptor 초기화 ///////
   init_fileDescriptor(t);
 }
