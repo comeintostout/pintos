@@ -331,7 +331,7 @@ load (const char *file_name, void (**eip) (void), void **esp)
   process_activate ();
 
   ///////// Todo : parse file name//////////
-  char* parsedFileName[100];
+  char *parsedFileName[100];
   char *tmpFileName = getSameString(file_name);
   int numberOfParsedWord;
   for(numberOfParsedWord = 0; strlen(tmpFileName) > 0; numberOfParsedWord++)
@@ -435,6 +435,10 @@ load (const char *file_name, void (**eip) (void), void **esp)
  done:
   /* We arrive here whether the load is successful or not. */
   // file_close (file);
+  free(tmpFileName);
+  for(int i=0;i<numberOfParsedWord;i++){
+    free(parsedFileName[i]);
+  }
   return success;
 }
 
