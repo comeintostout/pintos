@@ -77,6 +77,7 @@ start_process (void *file_name_)
   char *file_name = file_name_;
   struct intr_frame if_;
   bool success;
+  struct thread* currThread=thread_current();
 
   /* Initialize interrupt frame and load executable. */
   memset (&if_, 0, sizeof if_);
@@ -84,8 +85,7 @@ start_process (void *file_name_)
   if_.cs = SEL_UCSEG;
   if_.eflags = FLAG_IF | FLAG_MBS;
   success = load (file_name, &if_.eip, &if_.esp);
-  // if(success)
-  //   sema_up(&(thread_current()->sema_load));
+  sema_up(&(currThread->sema_load));
 
   /* If load failed, quit. */
   palloc_free_page (file_name);

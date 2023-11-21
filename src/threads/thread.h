@@ -100,14 +100,18 @@ struct thread
 	///// thread의 exit status
 	struct list childList;
 	struct list_elem childElem;
+   struct thread *parent;
 	int exitStatus;
    bool isLoaded;
+   bool isExited;
    struct semaphore sema_exit;
    struct semaphore sema_load;
    
    ///// thread가 지니는 file descriptor
    struct file *fileDescriptor[MAX_FILE_DESCRIPTOR];
    struct file *openFile;
+
+   int timeToWakeUp;
 
 #ifdef USERPROG
     /* Owned by userprog/process.c. */
@@ -153,5 +157,8 @@ int thread_get_nice (void);
 void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
+
+void thread_sleep(int ticks);
+void thread_wakeup(int ticks);
 
 #endif /* threads/thread.h */

@@ -11,9 +11,9 @@
 #include "threads/switch.h"
 #include "threads/synch.h"
 #include "threads/vaddr.h"
-#ifdef USERPROG
 #include "userprog/process.h"
 #include "filesys/file.h"
+#ifdef USERPROG
 #endif
 
 /* Random value for struct thread's `magic' member.
@@ -72,6 +72,43 @@ static void schedule (void);
 void thread_schedule_tail (struct thread *prev);
 static tid_t allocate_tid (void);
 
+static struct list sleepThreadList;
+
+/* 현재 쓰레드의 fd를 초기화 */
+void init_fileDescriptor(struct thread *currThread){
+  for(int i=0; i<MAX_FILE_DESCRIPTOR; i++){
+    currThread->fileDescriptor[i] = NULL;
+  }
+}
+
+void thread_sleep(int ticks){
+  struct thread* currThread = thread_current();
+  
+  enum intr_level intrLevel = intr_disable();
+  if(currThread != idle_thread){
+    if (currThread->status != THREAD_BLOCKED)
+      currThread->status = THREAD_BLOCKED;
+
+    list_push_back(&sleepThreadList, &(currThread->elem));
+    currThread->timeToWakeUp = ticks;
+    schedule();
+  }
+  intr_set_level(intrLevel);
+}
+
+void thread_wakeup(int ticks){
+  struct list_elem* elem = list_begin(&(sleepThreadList));
+  while(elem != list_end(&(sleepThreadList))){
+    struct thread* tmpThread = list_entry(elem, struct thread, elem);
+    if(tmpThread->timeToWakeUp > ticks){
+      elem = list_next(elem);
+    }else{
+      elem = list_remove(elem);
+      thread_unblock(tmpThread);
+    }
+  }
+}
+
 /* Initializes the threading system by transforming the code
    that's currently running into a thread.  This can't work in
    general and it is possible in this case only because loader.S
@@ -91,6 +128,7 @@ thread_init (void)
   ASSERT (intr_get_level () == INTR_OFF);
 
   lock_init (&tid_lock);
+  list_init(&(sleepThreadList));
   list_init (&ready_list);
   list_init (&all_list);
 
@@ -202,6 +240,9 @@ thread_create (const char *name, int priority,
   /* Add to run queue. */
   thread_unblock (t);
 
+  int currThreadPriority;
+  if((currThreadPriority = thread_get_priority()) < priority) thread_yield();
+  
   return tid;
 }
 
@@ -229,6 +270,11 @@ thread_block (void)
    be important: if the caller had disabled interrupts itself,
    it may expect that it can atomically unblock a thread and
    update other data. */
+
+bool priorityCmp(const struct list_elem *elemA, const struct list_elem *elemB, void *aux){
+  return list_entry(elemB,struct thread, elem)->priority < list_entry(elemA, struct thread, elem)->priority;
+}
+
 void
 thread_unblock (struct thread *t) 
 {
@@ -238,7 +284,8 @@ thread_unblock (struct thread *t)
 
   old_level = intr_disable ();
   ASSERT (t->status == THREAD_BLOCKED);
-  list_push_back (&ready_list, &t->elem);
+  list_insert_ordered(&ready_list, &(t->elem), priorityCmp, NULL);
+  // list_push_back (&ready_list, &t->elem);
   t->status = THREAD_READY;
   intr_set_level (old_level);
 }
@@ -311,8 +358,9 @@ thread_yield (void)
 
   old_level = intr_disable ();
   if (cur != idle_thread) 
-    list_push_back (&ready_list, &cur->elem);
-  cur->status = THREAD_READY;
+    list_insert_ordered(&ready_list, &cur->elem, priorityCmp, NULL);
+  if (cur->status != THREAD_READY)
+    cur->status = THREAD_READY;
   schedule ();
   intr_set_level (old_level);
 }
@@ -338,7 +386,13 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  struct thread* currThread = thread_current ();
+  if(currThread->priority <= new_priority){
+    currThread->priority = new_priority;
+  }else{
+    currThread->priority= new_priority;
+    thread_yield();
+  }
 }
 
 /* Returns the current thread's priority. */
