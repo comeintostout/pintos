@@ -26,28 +26,13 @@ void halt(){
 
 void exit(int status){
   struct thread *currThread = thread_current();
-  printf("%s: exit(%d)\n", currThread->name, status);
   currThread->exitStatus = status;
+  printf("%s: exit(%d)\n", currThread->name, status);
   thread_exit();
 }
 
 int exec(const char *cmd_line){
   return process_execute(cmd_line);
-  // int childTid = process_execute(cmd_line);
-  // if(childTid != -1){
-  //   struct thread* currThread = thread_current();
-  //   struct thread* child;
-
-  //   // 현재 쓰레드의 자식 list들을 순회. 해당 elem을 통해 list_entry()로 thread를 가져옴. 
-  //   for(struct list_elem* e=list_begin(&(currThread->childList)); e!=list_end(&(currThread->childList)) ; e=list_next(e)){
-  //     child = list_entry(e, struct thread, childElem);
-  //     if(childTid == child->tid){
-  //       sema_down(&(child->sema_load)); // isFinished가 down되며, 자식 쓰레드가 죽으면서 up 할 때 깨어남
-  //       break;
-  //     }
-  //   }
-  // }
-  // return childTid;
 }
 
 int wait (int pid){
@@ -55,25 +40,28 @@ int wait (int pid){
 }
 
 bool create(const char* file, unsigned int init_size){
-  validateFileNameContraints(file);
+  if(!validateFileNameContraints(file)) exit(-1);
   return filesys_create(file, init_size);
 }
 
 bool remove(const char* file){
-  validateFileNameContraints(file);
+  if(!validateFileNameContraints(file)) exit(-1);
   return filesys_remove(file);
 }
 
 int open(const char *file){
+  if(!validateFileNameContraints(file)) exit(-1);
+
   int fd = -1;
-  validateFileNameContraints(file);
-  
+  struct thread* currThread = thread_current();
   lock_acquire(&filesys_lock);
+
   // 파일을 여는 작업
   struct file *f = filesys_open(file);
-  if(f != NULL)
-    fd = add_file_fileDescriptor(thread_current(), f, -1);
-
+  if(f != NULL){
+    int insertFd = find_space_fildDescriptor(currThread);
+    fd = add_file_fileDescriptor(currThread, f, insertFd);
+  }
   lock_release(&filesys_lock);
   return fd;
 }
@@ -81,7 +69,8 @@ int open(const char *file){
 int filesize(int fd){
   if(!validateFdRange(fd,2,MAX_FILE_DESCRIPTOR))
     return 0;
-  struct file *f = get_file_fileDescriptor(thread_current(),fd);
+  struct thread* currThread = thread_current();
+  struct file *f = get_file_fileDescriptor(currThread,fd);
   if(f == NULL) 
     exit(-1);
   return file_length(f);
@@ -93,19 +82,21 @@ int read(int fd, void *buffer, unsigned int size){
   if(!validateFdRange(fd, 0, MAX_FILE_DESCRIPTOR) || fd == 1) exit(-1);
   validateAddress(buffer);
 
+  struct thread* currThread = thread_current();
   lock_acquire(&filesys_lock);
   if(fd >= 2){
-    struct file* f = get_file_fileDescriptor(thread_current(),fd);
-    if(f == NULL){
+    struct file* f = get_file_fileDescriptor(currThread,fd);
+    if(f != NULL){
+      readSize = file_read(f,buffer, size);
+    }else{
       lock_release(&filesys_lock);
       exit(-1);
     }
-    readSize = file_read(f,buffer, size);
   } else{
     for(readSize=0;(readSize<size);readSize++){
       if(!(ch = input_getc()))
         break;
-      ((char*)buffer)[readSize] = (char)(ch);
+      *(uint8_t*)(buffer+readSize)=ch;
     }
   }
   lock_release(&filesys_lock);
@@ -117,17 +108,19 @@ int write(int fd, void *buffer, unsigned int size){
   if(!validateFdRange(fd, 1, MAX_FILE_DESCRIPTOR)) exit(-1);
   validateAddress(buffer);
 
+  struct thread* currThread = thread_current();
   lock_acquire(&filesys_lock);
   if(fd == 1){
     putbuf(buffer, size);
     writeSize = size;
   } else {
-    struct file* f = get_file_fileDescriptor(thread_current(), fd);
-    if(f == NULL){
+    struct file* f = get_file_fileDescriptor(currThread, fd);
+    if(f != NULL){
+      writeSize = file_write(f,buffer,size);
+    }else{
       lock_release(&filesys_lock);
       exit(-1);
     }
-    writeSize = file_write(f,buffer,size);
   }
 
   lock_release(&filesys_lock);
@@ -136,23 +129,28 @@ int write(int fd, void *buffer, unsigned int size){
 
 void seek(int fd, unsigned int position){
   if(!validateFdRange(fd,2,MAX_FILE_DESCRIPTOR)) exit(-1);
-  struct file *f = get_file_fileDescriptor(thread_current(),fd);
+
+  struct thread* currThread = thread_current();
+  struct file *f = get_file_fileDescriptor(currThread,fd);
   if(f == NULL) exit(-1);
   file_seek(f,fd);
 }
 
 unsigned int tell(int fd){  
   if(!validateFdRange(fd,2,MAX_FILE_DESCRIPTOR))exit(-1);
-  
-  struct file *f = get_file_fileDescriptor(thread_current(),fd);
+
+  struct thread* currThread = thread_current();
+  struct file *f = get_file_fileDescriptor(currThread,fd);
   if(f == NULL) exit(-1);
   return file_tell(f);
 }
 
 
 void close(int fd){
-  if(!validateFdRange(fd, 2, MAX_FILE_DESCRIPTOR))exit(-1);
-  close_file_fileDescriptor(thread_current(), fd);
+
+  struct thread* currThread = thread_current();
+  if(fd >= 2)
+    close_file_fileDescriptor(currThread, fd);
 }
 
 
@@ -168,17 +166,6 @@ void validateAddressList(const void *startAddr,unsigned int addressCount){
   }
 }
 
-void validateFileNameContraints(const char* fileName){
-  if(fileName == NULL)
-    exit(-1);
-}
-
-/** lowCut <= fd < highCut  : 1, else : 0*/
-bool validateFdRange(int fd, int lowCut, int highCut){
-  if(fd >= lowCut && fd < highCut)
-    return 1;
-  return 0;
-}
 
 static void
 syscall_handler (struct intr_frame *f UNUSED) 

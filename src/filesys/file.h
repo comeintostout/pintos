@@ -33,6 +33,8 @@ int add_file_fileDescriptor(struct thread *currThread, struct file *f, int index
 struct file* get_file_fileDescriptor(struct thread *currThread, int fd);
 void close_file_fileDescriptor(struct thread *currThread, int fd);
 int find_space_fildDescriptor(struct thread *currThread);
+bool validateFdRange(int fd, int lowCut, int highCut);
+bool validateFileNameContraints(const char* fileName);
 
 
 #endif /* filesys/file.h */

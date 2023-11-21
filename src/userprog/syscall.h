@@ -19,6 +19,5 @@ int write(int fd, void *buffer, unsigned int size);
 void seek(int fd, unsigned int position);
 unsigned int tell(int fd);
 void close(int fd);
-bool validateFdRange(int fd, int lowCut, int highCut);
 
 #endif /* userprog/syscall.h */

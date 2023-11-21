@@ -170,26 +170,23 @@ file_tell (struct file *file)
 
 /* 현재 쓰레드의 fd를 초기화 */
 void init_fileDescriptor(struct thread *currThread){
-  for(int i=2; i<MAX_FILE_DESCRIPTOR; i++){
+  for(int i=0; i<MAX_FILE_DESCRIPTOR; i++){
     currThread->fileDescriptor[i] = NULL;
   }
 }
 
-// /* 현재 쓰레드의 fd의 index에 해당 파일 삽입. fd가 음수면, 가장 작은 공간에 할당 fd 반환, 음수 반환은 실패 의미 */
+/** thread[fd]에 파일 추가. 2 <= fd < MAX_FD */
 int add_file_fileDescriptor(struct thread *currThread, struct file *f, int fd){
-  if(fd == 0 || fd == 1 || fd >= MAX_FILE_DESCRIPTOR) 
-    return -1;
-  else if(fd == -1)
-    if ((fd = find_space_fildDescriptor(currThread))== -1)
-      return -1;
   
+  if(!validateFdRange(fd, 2, MAX_FILE_DESCRIPTOR))
+    return -1;
   currThread->fileDescriptor[fd] = f;
   return fd;
 }
 
 /* 현재 쓰레드의 fd 위치의 file 가져오기 */
 struct file* get_file_fileDescriptor(struct thread *currThread, int fd){
-  if(fd >= 2 && fd < MAX_FILE_DESCRIPTOR)
+  if(validateFdRange(fd, 2, MAX_FILE_DESCRIPTOR))
     return currThread->fileDescriptor[fd];
   else 
     return NULL;
@@ -201,13 +198,13 @@ void close_file_fileDescriptor(struct thread *currThread, int fd){
 
   if(fd == 0 || fd == 1){
     return;
-  }else if(fd > 0){
+  } else if(fd > 0){
     start = end = fd;
   }
 
-  for(fd=start; fd <= end; fd++){
-    file_close(currThread->fileDescriptor[fd]);
-    currThread->fileDescriptor[fd] = NULL;
+  for(int i=start; i <= end; i++){
+    file_close(currThread->fileDescriptor[i]);
+    currThread->fileDescriptor[i] = NULL;
   }
 }
 
@@ -219,4 +216,18 @@ int find_space_fildDescriptor(struct thread *currThread){
     }
   }
   return -1;
+}
+
+/** lowCut <= fd < highCut  : 1, else : 0*/
+bool validateFdRange(int fd, int lowCut, int highCut){
+  if(fd >= lowCut && fd < highCut)
+    return 1;
+  return 0;
+}
+
+/** 파일 이름을 check. 1이면 가능, 0이면 이상 */
+bool validateFileNameContraints(const char* fileName){
+  if(fileName == NULL)
+    return 0;
+  return 1;
 }
